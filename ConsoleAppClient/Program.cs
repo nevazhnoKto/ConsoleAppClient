@@ -10,21 +10,19 @@ namespace ConsoleAppClient
 {
     class Program
     {
-
-
         static void Main(string[] args)
         {
-            Thread myThread = new Thread(new ThreadStart(MainThread));
-            myThread.Start();
-            Thread updateDateDb = new Thread(new ThreadStart(UpdateRabbit));
-            updateDateDb.Start();
+            Thread threadSender = new Thread(new ThreadStart(SenderThread));
+            threadSender.Start();
+            Thread threadUpdateRabbit = new Thread(new ThreadStart(UpdateRabbit));
+            threadUpdateRabbit.Start();
             Console.WriteLine("Для выхода нажмите Esc");
             while (Console.ReadKey().Key != ConsoleKey.Escape)
             {
                 Console.WriteLine("Для выхода нажмите Esc");
             }
-            updateDateDb.Abort();
-            myThread.Abort();
+            threadUpdateRabbit.Abort();
+            threadSender.Abort();
         }
 
         // Поток, срабатывающий раз в 10 сек.
@@ -47,17 +45,17 @@ namespace ConsoleAppClient
                     {
                         // если сообщение отправлено, то добавить измененние в локальной базе  
                         if (rabbit.DoSend(messaage))
-                            db.ChangeSendFlag(inds[ind], 1);
+                            db.ChangeSendFlagAsync(inds[ind], 1);
                         ind++;
                     }
                 }
 
             }
-
         }
+
         // Главный поток для формировния и отправки сообщений.
         // Сообщения отправляются в локальную базу и в брокер сообщений.
-        public static void MainThread()
+        public static void SenderThread()
         {
             ClassForRabbit rabbit = new ClassForRabbit();
             ClassForDataBase db = new ClassForDataBase();
@@ -76,7 +74,7 @@ namespace ConsoleAppClient
                 if (rabbit.DoSend(message))
                 {
                     // Добавить в базу признак, что сообщение отправлено в брокер.
-                    db.ChangeSendFlag(lastInd, 1);
+                    db.ChangeSendFlagAsync(lastInd, 1);
                 }
                 Thread.Sleep(2000);
             }
@@ -221,7 +219,7 @@ namespace ConsoleAppClient
 
         // Метод для изменения флага IsSendin(флаг отправки в брокер)
         // Принимает индекс сообщения и значение, которое нужно установить.
-        public async void ChangeSendFlag(int ind, int newValue)
+        public async void ChangeSendFlagAsync(int ind, int newValue)
         {
             string connectionString = @"Data Source=.\SQLEXPRESS;Initial Catalog=exampledb;Integrated Security=True";
             string sqlExpression = String.Format("UPDATE ClientDB SET IsSending={1} WHERE Id='{0}'", ind, newValue);
